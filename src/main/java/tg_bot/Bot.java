@@ -1,7 +1,10 @@
 package tg_bot;
 
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
@@ -80,14 +83,55 @@ public class Bot extends TelegramLongPollingBot {
         }
     }
 
-    //настройка встроенной в сообщение клавиатуры
-    public InlineKeyboardMarkup inlineKeyboard() {
+    //Настройка многоуровневого меню встроенной в сообщение клавиатуры
+    private void buttonTap(Long id, String callbackQueryId, String callbackData, int msgId) {
+        //Для изменения текста сообщения
+        EditMessageText newTxt = EditMessageText.builder()
+                .chatId(id.toString())
+                .messageId(msgId).text("").build();
+        //Для перехода к другой клавиатуре
+        EditMessageReplyMarkup newKb = EditMessageReplyMarkup.builder()
+                .chatId(id.toString()).messageId(msgId).build();
+        //Реагирование на значение CALLBACK'а
+        if (callbackData.equals("GAME")) {
+            newTxt.setText("Спроси у старичка");
+            newKb.setReplyMarkup(inlineKeyboardGame());
+        } else if (callbackData.equals("BACK")) {
+            newTxt.setText("Стрима снова не будет.");
+            newKb.setReplyMarkup(inlineKeyboardFirstMenu());
+        }
+        //завершение запроса
+        AnswerCallbackQuery close = AnswerCallbackQuery.builder()
+                .callbackQueryId(callbackQueryId).build();
+        try {
+            execute(close);
+            execute(newTxt);
+            execute(newKb);
+        } catch (TelegramApiException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    //настройка встроенной в сообщение клавиатуры (первое меню)
+    public InlineKeyboardMarkup inlineKeyboardFirstMenu() {
+        List<InlineKeyboardButton> buttons = new ArrayList<>();
+        buttons.add(InlineKeyboardButton.builder().text("Узнать у старичка кое-что").callbackData("GAME").build());
+        buttons.add(InlineKeyboardButton.builder().text("Перейти на канал Ильюши").callbackData("MADCHANNEL").url("https://t.me/maddysontg").build());
+
+        return InlineKeyboardMarkup.builder()
+                .keyboardRow(List.of(buttons.get(0)))
+                .keyboardRow(List.of(buttons.get(1)))
+                .build();
+    }
+
+    //настройка встроенной в сообщение клавиатуры (кнопки для игры)
+    public InlineKeyboardMarkup inlineKeyboardGame() {
         List<InlineKeyboardButton> buttons = new ArrayList<>();
         buttons.add(InlineKeyboardButton.builder().text("Меня все спрашивают...").callbackData("ASK").build());
         buttons.add(InlineKeyboardButton.builder().text("Казино - рэспэкт или...").callbackData("CASINO").build());
         buttons.add(InlineKeyboardButton.builder().text("Старичок больше не пьёт?").callbackData("ALCO").build());
         buttons.add(InlineKeyboardButton.builder().text("Кто ты сегодня? - прогретый скуф или базированный МЧС?").callbackData("WHORU").build());
-        buttons.add(InlineKeyboardButton.builder().text("Канал Ильюши").callbackData("MADCHANNEL").url("https://t.me/maddysontg").build());
+        buttons.add(InlineKeyboardButton.builder().text("Назад").callbackData("BACK").build());
 
         return InlineKeyboardMarkup.builder()
                 .keyboardRow(List.of(buttons.get(0)))
@@ -134,7 +178,7 @@ public class Bot extends TelegramLongPollingBot {
             if (isStartWord(msgText)) { //выполняется при запуске/перезапуска бота
                 sendText(userId, "Прогрев гоев начинается через:\n3\n2\n1\nПогнали!"); //отправка приветствия
                 sendText(userId, "Ну что, малютка, как я могу к тебе обращаться?");
-                userData.put(userId, 0); //добавления информация о юзере в коллекцию
+                userData.put(userId, 0); //добавление информации о юзере в коллекцию
             } else if (isStopWord(msgText)) { //завершение работы с ботом по стоп-слову
                 if (userData.get(userId) == 0) {
                     sendText(userId, "Хреновое имя, давай-ка еще раз.");
@@ -144,10 +188,11 @@ public class Bot extends TelegramLongPollingBot {
                 }
             } else { //выполняется во всех остальных случаях
                 if (userData.get(userId) == 0) { //текстовое сообщение после ввода имени, кроме стоп-слов
-                    sendKeyboard(userId, getAnswer(msgText), inlineKeyboard());
+                    sendKeyboard(userId, getAnswer(msgText), inlineKeyboardFirstMenu());
                     userData.put(userId, ++msgCounter);
-                } else if (msgText.equals("Канал Ильюши")) {
-                    sendText(userId, "https://t.me/maddysontg");
+                } else if (isLink(msgText)) { //если поступил запрос для получения ссылки на канал
+                    sendText(userId, getLink(msgText));
+                    userData.put(userId, ++msgCounter);
                 } else { //текстовое сообщение, кроме стоп-слов
                     sendKeyboard(userId, "Че ты несешь??? Давай нормально или бан.", replyKeyboard());
                     userData.put(userId, ++msgCounter);
@@ -156,9 +201,17 @@ public class Bot extends TelegramLongPollingBot {
         } else if (update.hasCallbackQuery()) { //обработка CALLBACK'ов с кнопок встроенной клавиатуры
             // System.out.println("CLB_TEST - " + counterCLB++);
             //обращение идет к getCallbackQuery(), а не getMessage() - так как никакого сообщения при нажатии на встроенные кнопки нет
-            String callbackData = update.getCallbackQuery().getData();
-            long chatId = update.getCallbackQuery().getMessage().getChatId();
-            sendKeyboard(chatId, getAnswer(callbackData), inlineKeyboard());
+            String callbackData = update.getCallbackQuery().getData(); //возвращаемый CALLBACK
+            String callbackId = update.getCallbackQuery().getId(); //идентификатор CALLBACK'а
+            long chatId = update.getCallbackQuery().getMessage().getChatId(); //идентификатор чата
+            int msgId = update.getCallbackQuery().getMessage().getMessageId(); //идентификатор сообщения
+            if (callbackData.equals("GAME")) {
+                buttonTap(chatId, callbackId, callbackData, msgId);
+            } else if (callbackData.equals("BACK")) {
+                buttonTap(chatId, callbackId, callbackData, msgId);
+            } else {
+                sendKeyboard(chatId, getAnswer(callbackData), inlineKeyboardGame());
+            }
         }
     }
 
@@ -189,6 +242,36 @@ public class Bot extends TelegramLongPollingBot {
         return answers.get(random.nextInt(answers.size()));
     }
 
+    //обработка команд меню
+    private static String getLink(String command) {
+        switch (command.toLowerCase()) {
+            case "/vk" -> {
+                return "https://vk.com/maddysonofficial";
+            }
+            case "/youtube" -> {
+                return "https://www.youtube.com/@MadHighlights";
+            }
+            case "/twitch" -> {
+                return "https://www.twitch.tv/honeymad";
+            }
+            default -> {
+                return "https://t.me/maddysontg";
+            }
+        }
+    }
+
+    //проверка на запрос ссылок
+    private boolean isLink(String link) {
+        link = link.toLowerCase();
+        String[] links = {"/telegram", "/vk", "/youtube", "/twitch"};
+        for (String each : links) {
+            if (link.equals(each)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     //проверка на слово для запуска/перезапуска работы бота
     private boolean isStartWord(String startWord) {
         startWord = startWord.toLowerCase();
@@ -204,7 +287,7 @@ public class Bot extends TelegramLongPollingBot {
     //проверка на слово для завершения работы бота
     private boolean isStopWord(String stopWord) {
         stopWord = stopWord.toLowerCase();
-        String[] stopWords = {"stop", "exit", "flugegeheimen", "стоп", "выход", "флюгегехаймен", "Нахер эту чебуречную", STOP_BUTTON.toLowerCase()};
+        String[] stopWords = {"/stop", "stop", "exit", "flugegeheimen", "стоп", "выход", "флюгегехаймен", "Нахер эту чебуречную", STOP_BUTTON.toLowerCase()};
         for (String each : stopWords) {
             if (stopWord.equals(each)) {
                 return true;
