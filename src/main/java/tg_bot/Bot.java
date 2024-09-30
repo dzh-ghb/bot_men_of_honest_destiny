@@ -94,10 +94,10 @@ public class Bot extends TelegramLongPollingBot {
                 .chatId(id.toString()).messageId(msgId).build();
         //Реагирование на значение CALLBACK'а
         if (callbackData.equals("GAME")) {
-            newTxt.setText("Спроси у старичка");
+            newTxt.setText("Жми уже");
             newKb.setReplyMarkup(inlineKeyboardGame());
         } else if (callbackData.equals("BACK")) {
-            newTxt.setText("Стрима снова не будет.");
+            newTxt.setText("Стрима снова не будет.\nhttps://www.youtube.com/watch?v=FrnEnKyiWgw");
             newKb.setReplyMarkup(inlineKeyboardFirstMenu());
         }
         //завершение запроса
@@ -127,10 +127,12 @@ public class Bot extends TelegramLongPollingBot {
     //настройка встроенной в сообщение клавиатуры (кнопки для игры)
     public InlineKeyboardMarkup inlineKeyboardGame() {
         List<InlineKeyboardButton> buttons = new ArrayList<>();
-        buttons.add(InlineKeyboardButton.builder().text("Меня все спрашивают...").callbackData("ASK").build());
+        buttons.add(InlineKeyboardButton.builder().text("Меня все спрашивают...").callbackData("ADVERTISEMENT").build());
         buttons.add(InlineKeyboardButton.builder().text("Казино - рэспэкт или...").callbackData("CASINO").build());
         buttons.add(InlineKeyboardButton.builder().text("Старичок больше не пьёт?").callbackData("ALCO").build());
         buttons.add(InlineKeyboardButton.builder().text("Кто ты сегодня? - прогретый скуф или базированный МЧС?").callbackData("WHORU").build());
+        buttons.add(InlineKeyboardButton.builder().text("Сербы братишки?").callbackData("SERBS").build());
+        buttons.add(InlineKeyboardButton.builder().text("Узнать вековую мудрость").callbackData("WISDOM").build());
         buttons.add(InlineKeyboardButton.builder().text("Назад").callbackData("BACK").build());
 
         return InlineKeyboardMarkup.builder()
@@ -139,6 +141,8 @@ public class Bot extends TelegramLongPollingBot {
                 .keyboardRow(List.of(buttons.get(2)))
                 .keyboardRow(List.of(buttons.get(3)))
                 .keyboardRow(List.of(buttons.get(4)))
+                .keyboardRow(List.of(buttons.get(5)))
+                .keyboardRow(List.of(buttons.get(6)))
                 .build();
     }
 
@@ -190,11 +194,11 @@ public class Bot extends TelegramLongPollingBot {
                 if (userData.get(userId) == 0) { //текстовое сообщение после ввода имени, кроме стоп-слов
                     sendKeyboard(userId, getAnswer(msgText), inlineKeyboardFirstMenu());
                     userData.put(userId, ++msgCounter);
-                } else if (isLink(msgText)) { //если поступил запрос для получения ссылки на канал
+                } else if (isLink(msgText) || msgText.equals("Канал Ильюши")) { //если поступил запрос для получения ссылки на канал
                     sendText(userId, getLink(msgText));
                     userData.put(userId, ++msgCounter);
                 } else { //текстовое сообщение, кроме стоп-слов
-                    sendKeyboard(userId, "Че ты несешь??? Давай нормально или бан.", replyKeyboard());
+                    sendKeyboard(userId, "Че ты несешь??? Давай нормально или бан.\nhttps://www.youtube.com/watch?v=4rdTs9yGYbU", replyKeyboard());
                     userData.put(userId, ++msgCounter);
                 }
             }
@@ -219,23 +223,29 @@ public class Bot extends TelegramLongPollingBot {
     private String getAnswer(String callback) {
         List<String> answers = new ArrayList<>();
         switch (callback.toUpperCase()) {
-            case "ASK" -> {
+            case "ADVERTISEMENT" -> {
                 return "Друзья, где я ставлю на крупные спортивные мероприятия?\n*Контакт \"глаза в глаза\"*\nКонечно же на PARI, не забывайте юзать промокод \"ПОЖИЛОЙ СКУФ\"";
             }
             case "CASINO" -> {
-                answers.add("Азартные игры - это плохо, запомните раз и навсегда, если кто-то будет Вас бэйтить на азартные игры, покер или еще какое-то дерьмо, даже если это сраный дэп, не ведитесь.");
-                answers.add("У меня есть два варианта: либо я забираю эти деньги себе на карту, либо я не ухожу и заряжаю на то, что мне сказал Моденеми, но я уйду, хотя на черное я бы поставил!");
+                answers.add("Азартные игры - это плохо, запомните раз и навсегда, если кто-то будет Вас бэйтить на азартные игры, покер или еще какое-то дерьмо, даже если это сраный дэп, не ведитесь.\nhttps://www.youtube.com/watch?v=wcFQFZhf0gw");
+                answers.add("У меня есть два варианта: либо я забираю эти деньги себе на карту, либо я не ухожу и заряжаю на то, что мне сказал Моденеми, но я уйду, хотя на черное я бы поставил!\nhttps://www.youtube.com/watch?v=wcFQFZhf0gw");
             }
             case "ALCO" -> {
-                answers.add("Под ногами ящик Гиннеса");
-                answers.add("Ни капли алкоголя больше, железно и точка.");
+                answers.add("Под ногами ящик Гиннеса\nhttps://www.youtube.com/watch?v=9Ji_3uCc0MA");
+                answers.add("Ни капли алкоголя больше, твердо и четко.\nhttps://www.youtube.com/watch?v=LEBYYTugnoQ");
             }
             case "WHORU" -> {
-                answers.add("Да ты пропердел диван, чел, ты знаешь эти четыре буквы...");
-                answers.add("Про таких говорят что-то типа \"Базированный гигачад Шлёпа с квадратной челюстью\", ты славный BOY");
+                answers.add("Да ты пропердел диван, чел, ты знаешь эти четыре буквы...\nhttps://www.youtube.com/watch?v=KaHK8DUg8pE");
+                answers.add("Про таких говорят что-то типа \"Базированный гигачад Шлёпа с квадратной челюстью\", ты славный BOY\nhttps://www.youtube.com/watch?v=BXVFKvYW3x0");
             }
+            case "SERBS" -> {
+                answers.add("Да-браћо,\nсада више волим ракију, вотка није укусна, ракија је укусна, воће, знате, врло укусно\nhttps://www.youtube.com/watch?v=xokptzlDUU8");
+                answers.add("...ненавижу сербов, ракию, бухло, культуру, я их даже братишками не считаю\n*Новость: \"Мэддисон покинул Сербию...\"*\nhttps://www.youtube.com/watch?v=kTujYsiHiwA");
+            }
+            case "WISDOM" ->
+                    answers.add("Мальчик - посмеется.\nМужчина - скажет спасибо...\nhttps://www.youtube.com/watch?v=KWxfn-3-IUM");
             default -> {
-                return String.format("Здорова, %s!\nСтрима, конечно же, не будет, мб пройдемся по базе?", callback);
+                return String.format("Здорова, %s!\nСтрима, конечно же, не будет, мб пройдемся по базе?\nhttps://www.youtube.com/watch?v=m07qnqQEvyQ", callback);
             }
         }
         Random random = new Random();
@@ -304,7 +314,7 @@ public class Bot extends TelegramLongPollingBot {
 //                    message.setText("TEST");
 //
 //                    List<InlineKeyboardButton> buttons = new ArrayList<>();
-//                    buttons.add(InlineKeyboardButton.builder().text("Меня все спрашивают...").callbackData("ASK").build());
+//                    buttons.add(InlineKeyboardButton.builder().text("Меня все спрашивают...").callbackData("ADVERTISEMENT").build());
 //                    buttons.add(InlineKeyboardButton.builder().text("Казино - рэспэкт или...").callbackData("CASINO").build());
 //                    buttons.add(InlineKeyboardButton.builder().text("Старичок больше не пьёт?").callbackData("ALCO").build());
 //                    buttons.add(InlineKeyboardButton.builder().text("Кто ты сегодня? - прогретый скуф или базированный МЧС?").callbackData("WHORU").build());
@@ -328,8 +338,8 @@ public class Bot extends TelegramLongPollingBot {
 //                    System.out.println("EXCEPTION");
 //                }
 //Перезапись текста сообщения (ТОЛЬКО СООБЩЕНИЯ БОТА) после нажатия кнопки, прикрепленной к нему
-//            if (callbackData.equals("ASK")) {
-//                String text = "ASK";
+//            if (callbackData.equals("ADVERTISEMENT")) {
+//                String text = "ADVERTISEMENT";
 //                EditMessageText message = new EditMessageText(); //класс, позволяющий изменять сообщения (в т.ч. уже отосланные)
 //                message.setChatId(String.valueOf(chatId)); //ID чата, где будет изменяться сообщение
 //                message.setText(text); //устанавливаем текст для замены
