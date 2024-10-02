@@ -2,9 +2,12 @@ package tg_bot;
 
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
+import org.telegram.telegrambots.meta.api.methods.ParseMode;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
+import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
@@ -14,6 +17,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import tg_bot.config.Config;
 
+import java.io.File;
 import java.util.*;
 
 public class Bot extends TelegramLongPollingBot {
@@ -42,11 +46,12 @@ public class Bot extends TelegramLongPollingBot {
         return TOKEN;
     }
 
+    /*------------------------------------------методы отправки сообщений------------------------------------------*/
     //отправка сообщения (параметры: кому, сообщение)
     public void sendText(Long who, String txt) {
         SendMessage sm = SendMessage.builder()
                 .chatId(who.toString())
-                .text(txt)
+                .parseMode(ParseMode.HTML).text(txt)
                 .build();
         try {
             execute(sm);
@@ -55,12 +60,26 @@ public class Bot extends TelegramLongPollingBot {
         }
     }
 
+    //отправка изображения
+    public void sendPhotoMessage(Long who, String txt, String path) {
+        SendPhoto sp = SendPhoto.builder()
+                .chatId(String.valueOf(who))
+                .photo(new InputFile(new File(path)))
+                .parseMode(ParseMode.HTML).caption(txt)
+                .build();
+        try {
+            execute(sp);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
+
     //отправка сообщения с прикрепленной к СООБЩЕНИЮ клавиатурой для ответа
-    public void sendKeyboard(Long who, String txt, InlineKeyboardMarkup keyboard) {
+    public void sendKeyboard(Long who, String txt, InlineKeyboardMarkup inlineKeyboard) {
         SendMessage sm = SendMessage.builder()
                 .chatId(who.toString())
-                .parseMode("HTML").text(txt)
-                .replyMarkup(keyboard)
+                .replyMarkup(inlineKeyboard)
+                .parseMode(ParseMode.HTML).text(txt)
                 .build();
         try {
             execute(sm);
@@ -70,14 +89,29 @@ public class Bot extends TelegramLongPollingBot {
     }
 
     //отправка сообщения с прикрепленной клавиатурой, которая заменяет основную
-    public void sendKeyboard(Long who, String txt, ReplyKeyboardMarkup keyboard) {
+    public void sendKeyboard(Long who, String txt, ReplyKeyboardMarkup replyKeyboard) {
         SendMessage sm = SendMessage.builder()
                 .chatId(who.toString())
-                .parseMode("HTML").text(txt)
-                .replyMarkup(keyboard)
+                .replyMarkup(replyKeyboard)
+                .parseMode(ParseMode.HTML).text(txt)
                 .build();
         try {
             execute(sm);
+        } catch (TelegramApiException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    //отправка сообщения с прикрепленным изображением и встроенной клавиатурой
+    public void sendKeyboard(Long who, String txt, String path, InlineKeyboardMarkup inlineKeyboard) {
+        SendPhoto sp = SendPhoto.builder()
+                .chatId(String.valueOf(who))
+                .photo(new InputFile(new File(path)))
+                .replyMarkup(inlineKeyboard)
+                .parseMode(ParseMode.HTML).caption(txt)
+                .build();
+        try {
+            execute(sp);
         } catch (TelegramApiException e) {
             throw new RuntimeException(e);
         }
@@ -112,6 +146,7 @@ public class Bot extends TelegramLongPollingBot {
         }
     }
 
+    /*------------------------------------------методы создания и настроек клавиатур------------------------------------------*/
     //настройка встроенной в сообщение клавиатуры (первое меню)
     public InlineKeyboardMarkup inlineKeyboardFirstMenu() {
         List<InlineKeyboardButton> buttons = new ArrayList<>();
@@ -127,7 +162,7 @@ public class Bot extends TelegramLongPollingBot {
     //настройка встроенной в сообщение клавиатуры (кнопки для игры)
     public InlineKeyboardMarkup inlineKeyboardGame() {
         List<InlineKeyboardButton> buttons = new ArrayList<>();
-        buttons.add(InlineKeyboardButton.builder().text("Меня все спрашивают...").callbackData("ADVERTISEMENT").build());
+        buttons.add(InlineKeyboardButton.builder().text("Немного продажничей").callbackData("ADVERTISEMENT").build());
         buttons.add(InlineKeyboardButton.builder().text("Казино - рэспэкт или...").callbackData("CASINO").build());
         buttons.add(InlineKeyboardButton.builder().text("Старичок больше не пьёт?").callbackData("ALCO").build());
         buttons.add(InlineKeyboardButton.builder().text("Кто ты сегодня? - прогретый скуф или базированный МЧС?").callbackData("WHORU").build());
@@ -165,7 +200,9 @@ public class Bot extends TelegramLongPollingBot {
         return keyboard;
     }
 
-    //int counter = 1, counterMSG = 1, counterCLB = 1;
+    /*------------------------------------------метод, реагирующий на любые действия в боте------------------------------------------*/
+    int counter = 1, counterMSG = 1, counterCLB = 1;
+
     //код, срабатывающий каждый раз, когда происходит действие
     /*2024_09_25_проблема с CALLBACK'ми после нажатия на кнопки заключалась в том, что первые 4 переменные после if в onUpdateReceive
      *были вынесены в начало метода вне условия - постоянно шла попытка получения сообщения - сообщения не было - реакции не было,
@@ -178,9 +215,18 @@ public class Bot extends TelegramLongPollingBot {
             Message msg = update.getMessage(); //объект сообщения
             String msgText = msg.getText(); //текст сообщения
             long userId = msg.getFrom().getId(); //идентификатор юзера
-            //System.out.println("MSG_TEST - " + counterMSG++);
+            System.out.println("MSG_TEST - " + counterMSG++ + " - user: " + update.getMessage().getFrom().getUserName());
             if (isStartWord(msgText)) { //выполняется при запуске/перезапуска бота
-                sendText(userId, "Прогрев гоев начинается через:\n3\n2\n1\nПогнали!"); //отправка приветствия
+                sendPhotoMessage(userId, "Прогрев гоев начинается через:", "images/mad.jpg"); //отправка приветствия
+                threadSleep(500);
+                sendText(userId, "3");
+                threadSleep(750); //остановка работы основного потока на 0.5 секунд
+                sendText(userId, "2");
+                threadSleep(750);
+                sendText(userId, "1");
+                threadSleep(750);
+                sendText(userId, "Погнали!");
+                threadSleep(600);
                 sendText(userId, "Ну что, малютка, как я могу к тебе обращаться?");
                 userData.put(userId, 0); //добавление информации о юзере в коллекцию
             } else if (isStopWord(msgText)) { //завершение работы с ботом по стоп-слову
@@ -203,32 +249,35 @@ public class Bot extends TelegramLongPollingBot {
                 }
             }
         } else if (update.hasCallbackQuery()) { //обработка CALLBACK'ов с кнопок встроенной клавиатуры
-            // System.out.println("CLB_TEST - " + counterCLB++);
             //обращение идет к getCallbackQuery(), а не getMessage() - так как никакого сообщения при нажатии на встроенные кнопки нет
             String callbackData = update.getCallbackQuery().getData(); //возвращаемый CALLBACK
             String callbackId = update.getCallbackQuery().getId(); //идентификатор CALLBACK'а
+            System.out.println("CLB_TEST - " + counterCLB++ + " - callback: " + callbackData);
             long chatId = update.getCallbackQuery().getMessage().getChatId(); //идентификатор чата
             int msgId = update.getCallbackQuery().getMessage().getMessageId(); //идентификатор сообщения
-            if (callbackData.equals("GAME")) {
-                buttonTap(chatId, callbackId, callbackData, msgId);
-            } else if (callbackData.equals("BACK")) {
-                buttonTap(chatId, callbackId, callbackData, msgId);
-            } else {
-                sendKeyboard(chatId, getAnswer(callbackData), inlineKeyboardGame());
+            switch (callbackData) {
+                case "GAME", "BACK" -> buttonTap(chatId, callbackId, callbackData, msgId);
+                case "ADVERTISEMENT" ->
+                        sendKeyboard(chatId, getAnswer(callbackData), getImagePath(), inlineKeyboardGame());
+                default -> sendKeyboard(chatId, getAnswer(callbackData), inlineKeyboardGame());
             }
         }
     }
 
+    /*------------------------------------------дополнительные методы------------------------------------------*/
     //логика ответов на нажатие кнопок со встроенной клавиатуры
     private String getAnswer(String callback) {
         List<String> answers = new ArrayList<>();
         switch (callback.toUpperCase()) {
             case "ADVERTISEMENT" -> {
-                return "Друзья, где я ставлю на крупные спортивные мероприятия?\n*Контакт \"глаза в глаза\"*\nКонечно же на PARI, не забывайте юзать промокод \"ПОЖИЛОЙ СКУФ\"";
+                answers.add("Друзья, где я ставлю на крупные спортивные мероприятия?\n*Контакт \"глаза в глаза\"*\nКонечно же на PARI, не забывайте юзать промокод \"ПОЖИЛОЙ СКУФ\"");
+                answers.add("В Steam ежемесячно выходят новые игры, а мы продолжаем сталкиваться с текстом о том, что данный товар недоступен в нашем регионе\n" +
+                        "ХВАТИТ ЭТО ТЕРПЕТЬ!\nСкорее на КупиКод, сайт полностью, даже вместе со скидками, повторяет библиотеку Steam, " +
+                        "а в разделе \"Недоступные в РФ\" находятся игры, которые в самом магазине Steam пользователи из РФ найти не смогут");
             }
             case "CASINO" -> {
                 answers.add("Азартные игры - это плохо, запомните раз и навсегда, если кто-то будет Вас бэйтить на азартные игры, покер или еще какое-то дерьмо, даже если это сраный дэп, не ведитесь.\nhttps://www.youtube.com/watch?v=wcFQFZhf0gw");
-                answers.add("У меня есть два варианта: либо я забираю эти деньги себе на карту, либо я не ухожу и заряжаю на то, что мне сказал Моденеми, но я уйду, хотя на черное я бы поставил!\nhttps://www.youtube.com/watch?v=wcFQFZhf0gw");
+                answers.add("У меня есть два варианта: либо я забираю эти деньги себе на карту, либо я не ухожу и заряжаю на то, что мне сказал Моденеми, но я уйду, хотя на черное я бы поставил!\nhttps://www.youtube.com/watch?v=v3zcWMeexTU");
             }
             case "ALCO" -> {
                 answers.add("Под ногами ящик Гиннеса\nhttps://www.youtube.com/watch?v=9Ji_3uCc0MA");
@@ -252,7 +301,7 @@ public class Bot extends TelegramLongPollingBot {
         return answers.get(random.nextInt(answers.size()));
     }
 
-    //обработка команд меню
+    //обработка команд со ссылками из меню
     private static String getLink(String command) {
         switch (command.toLowerCase()) {
             case "/vk" -> {
@@ -268,6 +317,13 @@ public class Bot extends TelegramLongPollingBot {
                 return "https://t.me/maddysontg";
             }
         }
+    }
+
+    //получение рандомного изображения из нескольких вариантов
+    private String getImagePath() {
+        List<String> imagePath = List.of("images/kk.jpg", "images/pr.jpg");
+        Random random = new Random();
+        return imagePath.get(random.nextInt(imagePath.size()));
     }
 
     //проверка на запрос ссылок
@@ -304,6 +360,15 @@ public class Bot extends TelegramLongPollingBot {
             }
         }
         return false;
+    }
+
+    //метод (процедура) для приостановки работы главного потока на указанное в параметрах количество миллисекунд
+    private static void threadSleep(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 }
 
