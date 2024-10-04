@@ -56,7 +56,7 @@ public class Bot extends TelegramLongPollingBot {
         try {
             execute(sm);
         } catch (TelegramApiException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
         }
     }
 
@@ -84,7 +84,7 @@ public class Bot extends TelegramLongPollingBot {
         try {
             execute(sm);
         } catch (TelegramApiException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
         }
     }
 
@@ -98,7 +98,7 @@ public class Bot extends TelegramLongPollingBot {
         try {
             execute(sm);
         } catch (TelegramApiException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
         }
     }
 
@@ -113,7 +113,7 @@ public class Bot extends TelegramLongPollingBot {
         try {
             execute(sp);
         } catch (TelegramApiException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
         }
     }
 
@@ -127,12 +127,21 @@ public class Bot extends TelegramLongPollingBot {
         EditMessageReplyMarkup newKb = EditMessageReplyMarkup.builder()
                 .chatId(id.toString()).messageId(msgId).build();
         //Реагирование на значение CALLBACK'а
-        if (callbackData.equals("GAME")) {
-            newTxt.setText("Жми уже");
-            newKb.setReplyMarkup(inlineKeyboardGame());
-        } else if (callbackData.equals("BACK")) {
-            newTxt.setText("Стрима снова не будет.\nhttps://www.youtube.com/watch?v=FrnEnKyiWgw");
-            newKb.setReplyMarkup(inlineKeyboardFirstMenu());
+        switch (callbackData) {
+            case "GAME" -> {
+                newTxt.setText("Нажми кнопку и узнай, что скажет король");
+                newKb.setReplyMarkup(inlineKeyboardGame());
+            }
+            case "BACK" -> {
+                newTxt.setText("Стрима снова не будет.\nhttps://www.youtube.com/watch?v=FrnEnKyiWgw");
+                newKb.setReplyMarkup(inlineKeyboardFirstMenu());
+            }
+            case "ADVERTISEMENT" ->
+                    sendKeyboard(id, getAnswer(callbackData), getImagePath(), inlineKeyboardAfterChoice()); //отправка изображения с текстом в описании
+            default -> {
+                newTxt.setText(getAnswer(callbackData));
+                newKb.setReplyMarkup(inlineKeyboardAfterChoice());
+            }
         }
         //завершение запроса
         AnswerCallbackQuery close = AnswerCallbackQuery.builder()
@@ -178,6 +187,16 @@ public class Bot extends TelegramLongPollingBot {
                 .keyboardRow(List.of(buttons.get(4)))
                 .keyboardRow(List.of(buttons.get(5)))
                 .keyboardRow(List.of(buttons.get(6)))
+                .build();
+    }
+
+    //настройка встроенной в сообщение клавиатуры (кнопка для возврата к основному меню)
+    public InlineKeyboardMarkup inlineKeyboardAfterChoice() {
+        List<InlineKeyboardButton> buttons = new ArrayList<>();
+        buttons.add(InlineKeyboardButton.builder().text("Вернуться назад").callbackData("BACKTOGAME").build());
+
+        return InlineKeyboardMarkup.builder()
+                .keyboardRow(List.of(buttons.get(0)))
                 .build();
     }
 
@@ -255,11 +274,10 @@ public class Bot extends TelegramLongPollingBot {
             System.out.println("CLB_TEST - " + counterCLB++ + " - callback: " + callbackData);
             long chatId = update.getCallbackQuery().getMessage().getChatId(); //идентификатор чата
             int msgId = update.getCallbackQuery().getMessage().getMessageId(); //идентификатор сообщения
-            switch (callbackData) {
-                case "GAME", "BACK" -> buttonTap(chatId, callbackId, callbackData, msgId);
-                case "ADVERTISEMENT" ->
-                        sendKeyboard(chatId, getAnswer(callbackData), getImagePath(), inlineKeyboardGame());
-                default -> sendKeyboard(chatId, getAnswer(callbackData), inlineKeyboardGame());
+            if (callbackData.equals("BACKTOGAME")) {
+                sendKeyboard(chatId, getAnswer(callbackData), inlineKeyboardGame());
+            } else {
+                buttonTap(chatId, callbackId, callbackData, msgId);
             }
         }
     }
@@ -271,6 +289,7 @@ public class Bot extends TelegramLongPollingBot {
         switch (callback.toUpperCase()) {
             case "ADVERTISEMENT" -> {
                 answers.add("Друзья, где я ставлю на крупные спортивные мероприятия?\n*Контакт \"глаза в глаза\"*\nКонечно же на PARI, не забывайте юзать промокод \"ПОЖИЛОЙ СКУФ\"");
+                answers.add("Друзья, ну постоянно меня спрашиваете, где же я собираюсь ставить, на что я собираюсь ставить, но пора бы уже запомнить, что ставлю я на сайте PARI, либо в их прекрасном мобильном приложении...");
                 answers.add("В Steam ежемесячно выходят новые игры, а мы продолжаем сталкиваться с текстом о том, что данный товар недоступен в нашем регионе\n" +
                         "ХВАТИТ ЭТО ТЕРПЕТЬ!\nСкорее на КупиКод, сайт полностью, даже вместе со скидками, повторяет библиотеку Steam, " +
                         "а в разделе \"Недоступные в РФ\" находятся игры, которые в самом магазине Steam пользователи из РФ найти не смогут");
@@ -293,6 +312,11 @@ public class Bot extends TelegramLongPollingBot {
             }
             case "WISDOM" ->
                     answers.add("Мальчик - посмеется.\nМужчина - скажет спасибо...\nhttps://www.youtube.com/watch?v=KWxfn-3-IUM");
+            case "BACKTOGAME" -> {
+                answers.add("Малютка, жмай на кнопку");
+                answers.add("Окей, давай еще разок");
+                answers.add("Не борзей, старичок");
+            }
             default -> {
                 return String.format("Здорова, %s!\nСтрима, конечно же, не будет, мб пройдемся по базе?\nhttps://www.youtube.com/watch?v=m07qnqQEvyQ", callback);
             }
@@ -321,7 +345,7 @@ public class Bot extends TelegramLongPollingBot {
 
     //получение рандомного изображения из нескольких вариантов
     private String getImagePath() {
-        List<String> imagePath = List.of("images/kk.jpg", "images/pr.jpg");
+        List<String> imagePath = List.of("images/pr/pr0.jpg", "images/pr/pr1.jpg", "images/pr/pr2.jpg");
         Random random = new Random();
         return imagePath.get(random.nextInt(imagePath.size()));
     }
