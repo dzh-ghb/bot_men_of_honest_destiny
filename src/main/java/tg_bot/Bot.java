@@ -66,6 +66,20 @@ public class Bot extends TelegramLongPollingBot {
         }
     }
 
+    //отправка ответа на конкретное сообщение
+    public void sendText(Long chatId, Integer replyToMsgId, String txt) {
+        SendMessage sm = SendMessage.builder()
+                .chatId(chatId.toString())
+                .replyToMessageId(replyToMsgId)
+                .parseMode(ParseMode.HTML).text(txt)
+                .build();
+        try {
+            execute(sm);
+        } catch (TelegramApiException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
     //отправка изображения
     public void sendPhotoMessage(Long chatId, String txt, String path) {
         SendPhoto sp = SendPhoto.builder()
@@ -94,10 +108,11 @@ public class Bot extends TelegramLongPollingBot {
         }
     }
 
-    //отправка сообщения с прикрепленной клавиатурой, которая заменяет основную
-    public void sendKeyboard(Long chatId, String txt, ReplyKeyboardMarkup replyKeyboard) {
+    //отправка сообщения с прикрепленной клавиатурой, которая заменяет основную (в ответ на конкретное сообщение)
+    public void sendKeyboard(Long chatId, Integer replyToMsgId, String txt, ReplyKeyboardMarkup replyKeyboard) {
         SendMessage sm = SendMessage.builder()
                 .chatId(chatId.toString())
+                .replyToMessageId(replyToMsgId)
                 .replyMarkup(replyKeyboard)
                 .parseMode(ParseMode.HTML).text(txt)
                 .build();
@@ -145,7 +160,7 @@ public class Bot extends TelegramLongPollingBot {
             case "ADVERTISEMENT" -> {
                 deleteMessage(chatId, msgId);
                 sendKeyboard(chatId, Answers.getAnswer(callbackData), ImagePaths.getImagePath(), inlineKeyboardAfterChoice()); /*отправка изображения с текстом в описании,
-                    замена текста и клавиатуры не происходит, так как здесь идет работа не с текстовым сообщением, а c изображением с подписью,
+                    замена текста и клавиатуры не происходит, так как здесь идет работа не с SendMessage (текстовым сообщением), а с SendPhoto (изображением с описанием),
                     решение: удаление текста предыдущего сообщения (меню категорий) перед выводом ответа*/
             }
             default -> {
@@ -255,6 +270,7 @@ public class Bot extends TelegramLongPollingBot {
             //!!!Не считывались CALLBACK'и из-за того, что переменные ниже были указаны вне условия
             Message msg = update.getMessage(); //объект сообщения
             String msgText = msg.getText(); //текст сообщения
+            int msgId = msg.getMessageId(); //идентификатор сообщения
             long userId = msg.getFrom().getId(); //идентификатор юзера
             System.out.println("MSG_TEST - " + counterMSG++ + " - user: " + update.getMessage().getFrom().getUserName());
             if (KeyWords.isStartWord(msgText, RESTART_BUTTON)) { //выполняется при запуске/перезапуска бота
@@ -272,11 +288,13 @@ public class Bot extends TelegramLongPollingBot {
                 userData.put(userId, 0); //добавление информации о юзере в коллекцию
             } else if (KeyWords.isStopWord(msgText, STOP_BUTTON)) { //завершение работы с ботом по стоп-слову
                 if (userData.get(userId) == 0) {
-                    sendText(userId, "Хреновое имя, давай-ка еще раз.");
+                    sendText(userId, msgId, "Хреновое имя, давай-ка еще раз.");
                 } else {
                     sendText(userId, "ББ\n(Захочешь начать заново жми \"/start\")");
                     userData.put(userId, 0);
                 }
+            } else if (KeyWords.isLink(msgText) && userData.get(userId) == 0) { //если кнопка со ссылкой на канал из меню нажата на этапе ввода имени
+                sendText(userId, msgId, "Воу-воу, не спеши, сначала представься)");
             } else { //выполняется во всех остальных случаях
                 if (userData.get(userId) == 0) { //текстовое сообщение после ввода имени, кроме стоп-слов
                     sendKeyboard(userId, Answers.getAnswer(msgText), inlineKeyboardFirstMenu());
@@ -285,7 +303,7 @@ public class Bot extends TelegramLongPollingBot {
                     sendText(userId, Links.getLink(msgText));
                     userData.put(userId, ++msgCounter);
                 } else { //текстовое сообщение, кроме стоп-слов
-                    sendKeyboard(userId, "Че ты несешь??? Давай нормально или бан.\nhttps://www.youtube.com/watch?v=4rdTs9yGYbU", replyKeyboard());
+                    sendKeyboard(userId, msgId, "Че ты несешь??? Давай нормально или бан.\nhttps://www.youtube.com/watch?v=4rdTs9yGYbU", replyKeyboard());
                     userData.put(userId, ++msgCounter);
                 }
             }
