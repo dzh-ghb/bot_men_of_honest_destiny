@@ -108,13 +108,12 @@ public class Bot extends TelegramLongPollingBot {
         }
     }
 
-    //отправка сообщения с прикрепленной клавиатурой, которая заменяет основную (в ответ на конкретное сообщение)
-    public void sendKeyboard(Long chatId, Integer replyToMsgId, String txt, ReplyKeyboardMarkup replyKeyboard) {
+    //отправка сообщения с прикрепленной к СООБЩЕНИЮ клавиатурой для ответа и ссылкой на видео
+    public void sendKeyboard(Long chatId, String txt, String linkTxt, String url, InlineKeyboardMarkup inlineKeyboard) {
         SendMessage sm = SendMessage.builder()
                 .chatId(chatId.toString())
-                .replyToMessageId(replyToMsgId)
-                .replyMarkup(replyKeyboard)
-                .parseMode(ParseMode.HTML).text(txt)
+                .replyMarkup(inlineKeyboard)
+                .parseMode(ParseMode.HTML).text(txt.concat("\n").concat("<a href=\"" + url + "\"+>" + linkTxt + "</a>"))
                 .build();
         try {
             execute(sm);
@@ -138,6 +137,21 @@ public class Bot extends TelegramLongPollingBot {
         }
     }
 
+    //отправка сообщения со ссылкой и прикрепленной клавиатурой, которая заменяет основную (в ответ на конкретное сообщение)
+    public void sendKeyboard(Long chatId, Integer replyToMsgId, String txt, String linkTxt, String url, ReplyKeyboardMarkup replyKeyboard) {
+        SendMessage sm = SendMessage.builder()
+                .chatId(chatId.toString())
+                .replyToMessageId(replyToMsgId)
+                .replyMarkup(replyKeyboard)
+                .parseMode(ParseMode.HTML).text(txt.concat("\n").concat("<a href=\"" + url + "\"+>" + linkTxt + "</a>"))
+                .build();
+        try {
+            execute(sm);
+        } catch (TelegramApiException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
     //настройка многоуровневого меню встроенной в сообщение клавиатуры
     private void buttonTap(Long chatId, String callbackQueryId, String callbackData, int msgId) {
         //Для изменения текста сообщения
@@ -154,17 +168,19 @@ public class Bot extends TelegramLongPollingBot {
                 newKb.setReplyMarkup(inlineKeyboardGame());
             }
             case "BACK" -> {
-                newTxt.setText("Стрима снова не будет.\nhttps://www.youtube.com/watch?v=FrnEnKyiWgw");
+                newTxt.enableHtml(true);
+                newTxt.setText("Стрима снова не будет.".concat("\n").concat("<a href=\"https://www.youtube.com/watch?v=FrnEnKyiWgw\"+>" + Links.getLinkName() + "</a>"));
                 newKb.setReplyMarkup(inlineKeyboardFirstMenu());
             }
             case "ADVERTISEMENT" -> {
                 deleteMessage(chatId, msgId);
-                sendKeyboard(chatId, Answers.getAnswer(callbackData), ImagePaths.getImagePath(), inlineKeyboardAfterChoice()); /*отправка изображения с текстом в описании,
+                sendKeyboard(chatId, Answers.getAnswer(callbackData).get(0), ImagePaths.getImagePath(), inlineKeyboardAfterChoice()); /*отправка изображения с текстом в описании,
                     замена текста и клавиатуры не происходит, так как здесь идет работа не с SendMessage (текстовым сообщением), а с SendPhoto (изображением с описанием),
                     решение: удаление текста предыдущего сообщения (меню категорий) перед выводом ответа*/
             }
             default -> {
-                newTxt.setText(Answers.getAnswer(callbackData));
+                newTxt.enableHtml(true);
+                newTxt.setText(Answers.getAnswer(callbackData).get(0).concat("\n").concat("<a href=\"" + Answers.getAnswer(callbackData).get(1) + "\"+>" + Links.getLinkName() + "</a>"));
                 newKb.setReplyMarkup(inlineKeyboardAfterChoice());
             }
         }
@@ -297,13 +313,13 @@ public class Bot extends TelegramLongPollingBot {
                 sendText(userId, msgId, "Воу-воу, не спеши, сначала представься)");
             } else { //выполняется во всех остальных случаях
                 if (userData.get(userId) == 0) { //текстовое сообщение после ввода имени, кроме стоп-слов
-                    sendKeyboard(userId, Answers.getAnswer(msgText), inlineKeyboardFirstMenu());
+                    sendKeyboard(userId, Answers.getAnswer(msgText).get(0), Links.getLinkName(), Answers.getAnswer(msgText).get(1), inlineKeyboardFirstMenu());
                     userData.put(userId, ++msgCounter);
                 } else if (KeyWords.isLink(msgText) || msgText.equals("Канал Ильюши")) { //если поступил запрос для получения ссылки на канал
                     sendText(userId, Links.getLink(msgText));
                     userData.put(userId, ++msgCounter);
                 } else { //текстовое сообщение, кроме стоп-слов
-                    sendKeyboard(userId, msgId, "Че ты несешь??? Давай нормально или бан.\nhttps://www.youtube.com/watch?v=4rdTs9yGYbU", replyKeyboard());
+                    sendKeyboard(userId, msgId, "Че ты несешь??? Давай нормально или бан.", Links.getLinkName(), "https://www.youtube.com/watch?v=4rdTs9yGYbU", replyKeyboard());
                     userData.put(userId, ++msgCounter);
                 }
             }
@@ -315,7 +331,7 @@ public class Bot extends TelegramLongPollingBot {
             long chatId = update.getCallbackQuery().getMessage().getChatId(); //идентификатор чата
             int msgId = update.getCallbackQuery().getMessage().getMessageId(); //идентификатор сообщения
             if (callbackData.equals("BACKTOGAME")) {
-                sendKeyboard(chatId, Answers.getAnswer(callbackData), inlineKeyboardGame());
+                sendKeyboard(chatId, Answers.getAnswer(callbackData).get(0), inlineKeyboardGame());
             } else {
                 buttonTap(chatId, callbackId, callbackData, msgId);
             }
