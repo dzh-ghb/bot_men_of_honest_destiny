@@ -32,12 +32,14 @@ public class Bot extends TelegramLongPollingBot {
 
     private int msgCounter = 0; //счётчик сообщений для каждого юзера
     private final Map<Long, Integer> userData; //коллекция для параллельной работы бота с несколькими юзерами
+    private List<String> answerWithLink; //коллекция для хранения текста ответа и ссылки на видео
 
     private static final String RESTART_BUTTON = "Давай по новой"; //дополнительное сообщение для рестарта бота (текст кнопки)
     private static final String STOP_BUTTON = "Нахрен эту чебуречную"; //дополнительное сообщение для завершения работы с ботом (текст кнопки)
 
     public Bot() {
         userData = new HashMap<>(); //создание объекта коллекции HashMap
+        answerWithLink = new ArrayList<>(); //создание объекта коллекции ArrayList
     }
 
     //название бота
@@ -179,8 +181,9 @@ public class Bot extends TelegramLongPollingBot {
                     решение: удаление текста предыдущего сообщения (меню категорий) перед выводом ответа*/
             }
             default -> {
+                answerWithLink = Answers.getAnswer(callbackData);
                 newTxt.enableHtml(true);
-                newTxt.setText(Answers.getAnswer(callbackData).get(0).concat("\n").concat("<a href=\"" + Answers.getAnswer(callbackData).get(1) + "\"+>" + Links.getLinkName() + "</a>"));
+                newTxt.setText(answerWithLink.get(0).concat("\n").concat("<a href=\"" + answerWithLink.get(1) + "\"+>" + Links.getLinkName() + "</a>"));
                 newKb.setReplyMarkup(inlineKeyboardAfterChoice());
             }
         }
@@ -313,7 +316,8 @@ public class Bot extends TelegramLongPollingBot {
                 sendText(userId, msgId, "Воу-воу, не спеши, сначала представься)");
             } else { //выполняется во всех остальных случаях
                 if (userData.get(userId) == 0) { //текстовое сообщение после ввода имени, кроме стоп-слов
-                    sendKeyboard(userId, Answers.getAnswer(msgText).get(0), Links.getLinkName(), Answers.getAnswer(msgText).get(1), inlineKeyboardFirstMenu());
+                    answerWithLink = Answers.getAnswer(msgText);
+                    sendKeyboard(userId, answerWithLink.get(0), Links.getLinkName(), answerWithLink.get(1), inlineKeyboardFirstMenu());
                     userData.put(userId, ++msgCounter);
                 } else if (KeyWords.isLink(msgText) || msgText.equals("Канал Ильюши")) { //если поступил запрос для получения ссылки на канал
                     sendText(userId, Links.getLink(msgText));
