@@ -22,7 +22,7 @@ public class Links {
         }
     }
 
-    //Текст, отображаемый вместо ссылки
+    //текст, отображаемый вместо ссылок
     public static String getLinkName() {
         Random random = new Random();
         List<String> linkNames = List.of("Жмак", "Жми сюда", "Куда я жмал", "Тап", "Тык", "Тык сюда");

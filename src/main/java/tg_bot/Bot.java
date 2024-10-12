@@ -3,6 +3,7 @@ package tg_bot;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.ParseMode;
+import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
@@ -32,14 +33,14 @@ public class Bot extends TelegramLongPollingBot {
 
     private int msgCounter = 0; //счётчик сообщений для каждого юзера
     private final Map<Long, Integer> userData; //коллекция для параллельной работы бота с несколькими юзерами
-    private List<String> answerWithLink; //коллекция для хранения текста ответа и ссылки на видео
+    private List<String> responseWithLink; //коллекция для хранения текста ответа и ссылки на видео
 
     private static final String RESTART_BUTTON = "Давай по новой"; //дополнительное сообщение для рестарта бота (текст кнопки)
     private static final String STOP_BUTTON = "Нахрен эту чебуречную"; //дополнительное сообщение для завершения работы с ботом (текст кнопки)
 
     public Bot() {
         userData = new HashMap<>(); //создание объекта коллекции HashMap
-        answerWithLink = new ArrayList<>(); //создание объекта коллекции ArrayList
+        responseWithLink = new ArrayList<>(); //создание объекта коллекции ArrayList
     }
 
     //название бота
@@ -124,16 +125,20 @@ public class Bot extends TelegramLongPollingBot {
         }
     }
 
-    //отправка сообщения с прикрепленным изображением и встроенной клавиатурой
-    public void sendKeyboard(Long chatId, String caption, String pathname, InlineKeyboardMarkup inlineKeyboard) {
+    //отправка изображения и аудиосообщения со встроенной клавиатурой
+    public void sendKeyboard(Long chatId, String imagePath, String audioPath, InlineKeyboardMarkup inlineKeyboard) {
         SendPhoto sp = SendPhoto.builder()
                 .chatId(String.valueOf(chatId))
-                .photo(new InputFile(new File(pathname)))
+                .photo(new InputFile(new File(imagePath)))
+                .build();
+        SendAudio sa = SendAudio.builder()
+                .chatId(String.valueOf(chatId))
+                .audio(new InputFile(new File(audioPath)))
                 .replyMarkup(inlineKeyboard)
-                .parseMode(ParseMode.HTML).caption(caption)
                 .build();
         try {
             execute(sp);
+            execute(sa);
         } catch (TelegramApiException e) {
             System.out.println(e.getMessage());
         }
@@ -176,14 +181,14 @@ public class Bot extends TelegramLongPollingBot {
             }
             case "ADVERTISEMENT" -> {
                 deleteMessage(chatId, msgId);
-                sendKeyboard(chatId, Answers.getAnswer(callbackData).get(0), ImagePaths.getImagePath(), inlineKeyboardAfterChoice()); /*отправка изображения с текстом в описании,
+                sendKeyboard(chatId, Paths.getImagePath(), Paths.getAudioPath(), inlineKeyboardAfterChoice()); /*отправка изображения с текстом в описании,
                     замена текста и клавиатуры не происходит, так как здесь идет работа не с SendMessage (текстовым сообщением), а с SendPhoto (изображением с описанием),
                     решение: удаление текста предыдущего сообщения (меню категорий) перед выводом ответа*/
             }
             default -> {
-                answerWithLink = Answers.getAnswer(callbackData);
+                responseWithLink = Responses.getResponse(callbackData);
                 newTxt.enableHtml(true);
-                newTxt.setText(answerWithLink.get(0).concat("\n").concat("<a href=\"" + answerWithLink.get(1) + "\"+>" + Links.getLinkName() + "</a>"));
+                newTxt.setText(responseWithLink.get(0).concat("\n").concat("<a href=\"" + responseWithLink.get(1) + "\"+>" + Links.getLinkName() + "</a>"));
                 newKb.setReplyMarkup(inlineKeyboardAfterChoice());
             }
         }
@@ -217,7 +222,6 @@ public class Bot extends TelegramLongPollingBot {
         List<InlineKeyboardButton> buttons = new ArrayList<>();
         buttons.add(InlineKeyboardButton.builder().text("Узнать у старичка кое-что").callbackData("GAME").build());
         buttons.add(InlineKeyboardButton.builder().text("Перейти на канал Ильюши").callbackData("MADCHANNEL").url("https://t.me/maddysontg").build());
-
         return InlineKeyboardMarkup.builder()
                 .keyboardRow(List.of(buttons.get(0)))
                 .keyboardRow(List.of(buttons.get(1)))
@@ -234,7 +238,6 @@ public class Bot extends TelegramLongPollingBot {
         buttons.add(InlineKeyboardButton.builder().text("Сербы братишки?").callbackData("SERBS").build());
         buttons.add(InlineKeyboardButton.builder().text("Узнать вековую мудрость").callbackData("WISDOM").build());
         buttons.add(InlineKeyboardButton.builder().text("Назад").callbackData("BACK").build());
-
         return InlineKeyboardMarkup.builder()
                 .keyboardRow(List.of(buttons.get(0)))
                 .keyboardRow(List.of(buttons.get(1)))
@@ -250,7 +253,6 @@ public class Bot extends TelegramLongPollingBot {
     public InlineKeyboardMarkup inlineKeyboardAfterChoice() {
         List<InlineKeyboardButton> buttons = new ArrayList<>();
         buttons.add(InlineKeyboardButton.builder().text("Вернуться назад").callbackData("BACKTOGAME").build());
-
         return InlineKeyboardMarkup.builder()
                 .keyboardRow(List.of(buttons.get(0)))
                 .build();
@@ -276,7 +278,7 @@ public class Bot extends TelegramLongPollingBot {
     }
 
     /*------------------------------------------метод, реагирующий на любые действия в боте------------------------------------------*/
-    int counter = 1, counterMSG = 1, counterCLB = 1;
+    int counterMSG = 1, counterCLB = 1;
 
     //код, срабатывающий каждый раз, когда происходит действие
     /*2024_09_25_проблема с CALLBACK'ми после нажатия на кнопки заключалась в том, что первые 4 переменные после if в onUpdateReceive
@@ -291,7 +293,7 @@ public class Bot extends TelegramLongPollingBot {
             String msgText = msg.getText(); //текст сообщения
             int msgId = msg.getMessageId(); //идентификатор сообщения
             long userId = msg.getFrom().getId(); //идентификатор юзера
-            System.out.println("MSG_TEST - " + counterMSG++ + " - user: " + update.getMessage().getFrom().getUserName());
+            System.out.println("MSG_TEST - " + counterMSG++ + "; user: " + update.getMessage().getFrom().getUserName() + "; message: " + msgText);
             if (KeyWords.isStartWord(msgText, RESTART_BUTTON)) { //выполняется при запуске/перезапуска бота
                 sendPhotoMessage(userId, "Прогрев гоев начинается через:", "images/mad.jpg"); //отправка приветствия
                 Thread.sleep(500); //остановка работы основного потока на 0.5 секунд
@@ -316,8 +318,8 @@ public class Bot extends TelegramLongPollingBot {
                 sendText(userId, msgId, "Воу-воу, не спеши, сначала представься)");
             } else { //выполняется во всех остальных случаях
                 if (userData.get(userId) == 0) { //текстовое сообщение после ввода имени, кроме стоп-слов
-                    answerWithLink = Answers.getAnswer(msgText);
-                    sendKeyboard(userId, answerWithLink.get(0), Links.getLinkName(), answerWithLink.get(1), inlineKeyboardFirstMenu());
+                    responseWithLink = Responses.getResponse(msgText);
+                    sendKeyboard(userId, responseWithLink.get(0), Links.getLinkName(), responseWithLink.get(1), inlineKeyboardFirstMenu());
                     userData.put(userId, ++msgCounter);
                 } else if (KeyWords.isLink(msgText) || msgText.equals("Канал Ильюши")) { //если поступил запрос для получения ссылки на канал
                     sendText(userId, Links.getLink(msgText));
@@ -331,11 +333,11 @@ public class Bot extends TelegramLongPollingBot {
             //обращение идет к getCallbackQuery(), а не getMessage() - так как никакого сообщения при нажатии на встроенные кнопки нет
             String callbackData = update.getCallbackQuery().getData(); //возвращаемый CALLBACK
             String callbackId = update.getCallbackQuery().getId(); //идентификатор CALLBACK'а
-            System.out.println("CLB_TEST - " + counterCLB++ + " - callback: " + callbackData);
+            System.out.println("CLB_TEST - " + counterCLB++ + "; user: " + update.getCallbackQuery().getFrom().getUserName() + "; callback: " + callbackData);
             long chatId = update.getCallbackQuery().getMessage().getChatId(); //идентификатор чата
             int msgId = update.getCallbackQuery().getMessage().getMessageId(); //идентификатор сообщения
             if (callbackData.equals("BACKTOGAME")) {
-                sendKeyboard(chatId, Answers.getAnswer(callbackData).get(0), inlineKeyboardGame());
+                sendKeyboard(chatId, Responses.getResponse(callbackData).get(0), inlineKeyboardGame());
             } else {
                 buttonTap(chatId, callbackId, callbackData, msgId);
             }
