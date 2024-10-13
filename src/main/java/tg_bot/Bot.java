@@ -1,5 +1,6 @@
 package tg_bot;
 
+import com.vdurmont.emoji.EmojiParser;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.ParseMode;
@@ -23,13 +24,13 @@ import tg_bot.config.Config;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Bot extends TelegramLongPollingBot {
     private static final String USERNAME = Config.getUsername(); //название бота
-    private static final String TOKEN = Config.getToken(); //токен
+    private static final String TOKEN = Config.getToken(); //токен бота
 
     private int msgCounter = 0; //счётчик сообщений для каждого юзера
     private final Map<Long, Integer> userData; //коллекция для параллельной работы бота с несколькими юзерами
@@ -37,9 +38,10 @@ public class Bot extends TelegramLongPollingBot {
 
     private static final String RESTART_BUTTON = "Давай по новой"; //дополнительное сообщение для рестарта бота (текст кнопки)
     private static final String STOP_BUTTON = "Нахрен эту чебуречную"; //дополнительное сообщение для завершения работы с ботом (текст кнопки)
+    private static final String STICKERS_BUTTON = "Стикеры со старичком"; //дополнительное сообщение для выбора отправки стикеров (текст кнопки)
 
     public Bot() {
-        userData = new HashMap<>(); //создание объекта коллекции HashMap
+        userData = new ConcurrentHashMap<>(); //создание объекта коллекции HashMap
         responseWithLink = new ArrayList<>(); //создание объекта коллекции ArrayList
     }
 
@@ -83,6 +85,19 @@ public class Bot extends TelegramLongPollingBot {
         }
     }
 
+    //отправка сообщения со ссылкой
+    public void sendText(Long chatId, String url, String linkTxt) {
+        SendMessage sm = SendMessage.builder()
+                .chatId(chatId.toString())
+                .parseMode(ParseMode.HTML).text("<a href=\"" + url + "\"+>" + linkTxt + "</a>")
+                .build();
+        try {
+            execute(sm);
+        } catch (TelegramApiException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
     //отправка изображения
     public void sendPhotoMessage(Long chatId, String txt, String path) {
         SendPhoto sp = SendPhoto.builder()
@@ -112,7 +127,7 @@ public class Bot extends TelegramLongPollingBot {
     }
 
     //отправка сообщения с прикрепленной к СООБЩЕНИЮ клавиатурой для ответа и ссылкой на видео
-    public void sendKeyboard(Long chatId, String txt, String linkTxt, String url, InlineKeyboardMarkup inlineKeyboard) {
+    public void sendKeyboard(Long chatId, String txt, String url, String linkTxt, InlineKeyboardMarkup inlineKeyboard) {
         SendMessage sm = SendMessage.builder()
                 .chatId(chatId.toString())
                 .replyMarkup(inlineKeyboard)
@@ -125,10 +140,13 @@ public class Bot extends TelegramLongPollingBot {
         }
     }
 
-    //отправка изображения и аудиосообщения со встроенной клавиатурой
+    //отправка изображения с подписью-эмодзи и аудиосообщения со встроенной клавиатурой
     public void sendKeyboard(Long chatId, String imagePath, String audioPath, InlineKeyboardMarkup inlineKeyboard) {
+        String clown = ":clown_face:";
+        String emoji = EmojiParser.parseToUnicode(clown.concat(clown).concat(clown));
         SendPhoto sp = SendPhoto.builder()
                 .chatId(String.valueOf(chatId))
+                .parseMode(ParseMode.HTML).caption(emoji)
                 .photo(new InputFile(new File(imagePath)))
                 .build();
         SendAudio sa = SendAudio.builder()
@@ -145,7 +163,7 @@ public class Bot extends TelegramLongPollingBot {
     }
 
     //отправка сообщения со ссылкой и прикрепленной клавиатурой, которая заменяет основную (в ответ на конкретное сообщение)
-    public void sendKeyboard(Long chatId, Integer replyToMsgId, String txt, String linkTxt, String url, ReplyKeyboardMarkup replyKeyboard) {
+    public void sendKeyboard(Long chatId, Integer replyToMsgId, String txt, String url, String linkTxt, ReplyKeyboardMarkup replyKeyboard) {
         SendMessage sm = SendMessage.builder()
                 .chatId(chatId.toString())
                 .replyToMessageId(replyToMsgId)
@@ -269,7 +287,7 @@ public class Bot extends TelegramLongPollingBot {
         keyboardRows.add(firstRow);
 
         KeyboardRow secondRow = new KeyboardRow();
-        secondRow.add("Канал Ильюши");
+        secondRow.add(STICKERS_BUTTON);
         keyboardRows.add(secondRow);
 
         keyboard.setKeyboard(keyboardRows);
@@ -319,13 +337,13 @@ public class Bot extends TelegramLongPollingBot {
             } else { //выполняется во всех остальных случаях
                 if (userData.get(userId) == 0) { //текстовое сообщение после ввода имени, кроме стоп-слов
                     responseWithLink = Responses.getResponse(msgText);
-                    sendKeyboard(userId, responseWithLink.get(0), Links.getLinkName(), responseWithLink.get(1), inlineKeyboardFirstMenu());
+                    sendKeyboard(userId, responseWithLink.get(0), responseWithLink.get(1), Links.getLinkName(), inlineKeyboardFirstMenu());
                     userData.put(userId, ++msgCounter);
-                } else if (KeyWords.isLink(msgText) || msgText.equals("Канал Ильюши")) { //если поступил запрос для получения ссылки на канал
-                    sendText(userId, Links.getLink(msgText));
+                } else if (KeyWords.isLink(msgText) || msgText.equals(STICKERS_BUTTON)) { //если поступил запрос для получения ссылки
+                    sendText(userId, Links.getLink(msgText).get(0), Links.getLink(msgText).get(1));
                     userData.put(userId, ++msgCounter);
                 } else { //текстовое сообщение, кроме стоп-слов
-                    sendKeyboard(userId, msgId, "Че ты несешь??? Давай нормально или бан.", Links.getLinkName(), "https://www.youtube.com/watch?v=4rdTs9yGYbU", replyKeyboard());
+                    sendKeyboard(userId, msgId, "Че ты несешь??? Давай нормально или бан.", "https://www.youtube.com/watch?v=4rdTs9yGYbU", Links.getLinkName(), replyKeyboard());
                     userData.put(userId, ++msgCounter);
                 }
             }

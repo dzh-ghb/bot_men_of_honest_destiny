@@ -1,25 +1,40 @@
 package tg_bot.additional;
 
+import com.vdurmont.emoji.EmojiParser;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
 public class Links {
     //обработка команд со ссылками из меню
-    public static String getLink(String command) {
+    public static List<String> getLink(String command) {
+        List<String> linkWithName = new ArrayList<>();
         switch (command.toLowerCase()) {
+            case "/stickers" -> {
+                String clown = ":clown_face:";
+                String linkName = EmojiParser.parseToUnicode(clown.concat(clown).concat(clown));
+                linkWithName.add("https://t.me/addstickers/gifmaddyson_by_fStikBot");
+                linkWithName.add(linkName);
+            }
             case "/vk" -> {
-                return "https://vk.com/maddysonofficial";
+                linkWithName.add("https://vk.com/maddysonofficial");
+                linkWithName.add(getLinkName());
             }
             case "/youtube" -> {
-                return "https://www.youtube.com/@MadHighlights";
+                linkWithName.add("https://www.youtube.com/@MadHighlights");
+                linkWithName.add(getLinkName());
             }
             case "/twitch" -> {
-                return "https://www.twitch.tv/honeymad";
+                linkWithName.add("https://www.twitch.tv/honeymad");
+                linkWithName.add(getLinkName());
             }
             default -> {
-                return "https://t.me/maddysontg";
+                linkWithName.add("https://t.me/maddysontg");
+                linkWithName.add(getLinkName());
             }
         }
+        return linkWithName;
     }
 
     //текст, отображаемый вместо ссылок

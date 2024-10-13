@@ -4,7 +4,7 @@ public class KeyWords {
     //проверка на запрос ссылок
     public static boolean isLink(String link) {
         link = link.toLowerCase();
-        String[] links = {"/telegram", "/vk", "/youtube", "/twitch"};
+        String[] links = {"/stickers", "/telegram", "/vk", "/youtube", "/twitch"};
         for (String each : links) {
             if (link.equals(each)) {
                 return true;
