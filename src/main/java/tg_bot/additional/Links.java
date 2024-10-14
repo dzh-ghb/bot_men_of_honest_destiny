@@ -11,11 +11,9 @@ public class Links {
     public static List<String> getLink(String command) {
         List<String> linkWithName = new ArrayList<>();
         switch (command.toLowerCase()) {
-            case "/stickers" -> {
-                String clown = ":clown_face:";
-                String linkName = EmojiParser.parseToUnicode(clown.concat(clown).concat(clown));
-                linkWithName.add("https://t.me/addstickers/gifmaddyson_by_fStikBot");
-                linkWithName.add(linkName);
+            case "/telegram" -> {
+                linkWithName.add("https://t.me/maddysontg");
+                linkWithName.add(getLinkName());
             }
             case "/vk" -> {
                 linkWithName.add("https://vk.com/maddysonofficial");
@@ -30,8 +28,10 @@ public class Links {
                 linkWithName.add(getLinkName());
             }
             default -> {
-                linkWithName.add("https://t.me/maddysontg");
-                linkWithName.add(getLinkName());
+                String clown = ":clown_face:";
+                String linkName = EmojiParser.parseToUnicode(clown.concat(clown).concat(clown));
+                linkWithName.add("https://t.me/addstickers/gifmaddyson_by_fStikBot");
+                linkWithName.add(linkName);
             }
         }
         return linkWithName;
