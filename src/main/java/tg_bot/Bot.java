@@ -89,7 +89,7 @@ public class Bot extends TelegramLongPollingBot {
     public void sendText(Long chatId, String url, String linkTxt) {
         SendMessage sm = SendMessage.builder()
                 .chatId(chatId.toString())
-                .parseMode(ParseMode.HTML).text("<a href=\"" + url + "\"+>" + linkTxt + "</a>")
+                .parseMode(ParseMode.HTML).text("<span class =\"tg-spoiler\"><a href=\"" + url + "\"+>" + linkTxt + "</a></span>")
                 .build();
         try {
             execute(sm);
@@ -131,7 +131,7 @@ public class Bot extends TelegramLongPollingBot {
         SendMessage sm = SendMessage.builder()
                 .chatId(chatId.toString())
                 .replyMarkup(inlineKeyboard)
-                .parseMode(ParseMode.HTML).text(txt.concat("\n").concat("<a href=\"" + url + "\"+>" + linkTxt + "</a>"))
+                .parseMode(ParseMode.HTML).text(txt.concat("\n").concat("<span class =\"tg-spoiler\"><a href=\"" + url + "\"+>" + linkTxt + "</a></span>"))
                 .build();
         try {
             execute(sm);
@@ -168,7 +168,7 @@ public class Bot extends TelegramLongPollingBot {
                 .chatId(chatId.toString())
                 .replyToMessageId(replyToMsgId)
                 .replyMarkup(replyKeyboard)
-                .parseMode(ParseMode.HTML).text(txt.concat("\n").concat("<a href=\"" + url + "\"+>" + linkTxt + "</a>"))
+                .parseMode(ParseMode.HTML).text(txt.concat("\n").concat("<span class =\"tg-spoiler\"><a href=\"" + url + "\"+>" + linkTxt + "</a></span>"))
                 .build();
         try {
             execute(sm);
@@ -194,7 +194,7 @@ public class Bot extends TelegramLongPollingBot {
             }
             case "BACK" -> {
                 newTxt.enableHtml(true);
-                newTxt.setText("Стрима снова не будет.".concat("\n").concat("<a href=\"https://www.youtube.com/watch?v=FrnEnKyiWgw\"+>" + Links.getLinkName() + "</a>"));
+                newTxt.setText("Стрима снова не будет.".concat("\n").concat("<span class =\"tg-spoiler\"><a href=\"https://www.youtube.com/watch?v=FrnEnKyiWgw\"+>" + Links.getLinkName() + "</a></span>"));
                 newKb.setReplyMarkup(inlineKeyboardFirstMenu());
             }
             case "ADVERTISEMENT" -> {
@@ -206,7 +206,7 @@ public class Bot extends TelegramLongPollingBot {
             default -> {
                 responseWithLink = Responses.getResponse(callbackData);
                 newTxt.enableHtml(true);
-                newTxt.setText(responseWithLink.get(0).concat("\n").concat("<a href=\"" + responseWithLink.get(1) + "\"+>" + Links.getLinkName() + "</a>"));
+                newTxt.setText(responseWithLink.get(0).concat("\n").concat("<span class =\"tg-spoiler\"><a href=\"" + responseWithLink.get(1) + "\"+>" + Links.getLinkName() + "</a></span>"));
                 newKb.setReplyMarkup(inlineKeyboardAfterChoice());
             }
         }
